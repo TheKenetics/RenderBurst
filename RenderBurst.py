@@ -13,17 +13,6 @@ import os
 from bpy.props import EnumProperty, IntProperty, IntVectorProperty, FloatVectorProperty, BoolProperty, FloatProperty, StringProperty
 from bpy.types import PropertyGroup, UIList, Operator, Panel, AddonPreferences
 
-"""
-Every cam
-options
-render size xy
-render percentage
-render border minmaxxy
-use camera options
-global options
-set active options to cam
-"""
-
 
 def SetRenderBorderMinX(self, new_value):
 	self["render_border_min_x"] = Clamp(new_value, 0.0, self.render_border_max_x)
