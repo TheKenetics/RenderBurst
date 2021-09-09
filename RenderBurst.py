@@ -1,7 +1,7 @@
 bl_info = {
 	"name": "Render Burst",
 	"category": "Render",
-	"blender": (2, 80, 0),
+	"blender": (2, 93, 0),
 	"author" : "Aidy Burrows, Gleb Alexandrov, Roman Alexandrov, CreativeShrimp.com <support@creativeshrimp.com>",
 	"version" : (1, 1, 30),
 	"description" :
