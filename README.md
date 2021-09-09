@@ -1,3 +1,9 @@
+# Differences between this fork and RenderBurst
+
+* Works with 2.93
+
+* RenderSettings per Camera
+
 # Render Burst - Batch Rendering Add-on for Blender 2.8 and 2.79
 
 Render all cameras, one by one, and store the results. <br />
