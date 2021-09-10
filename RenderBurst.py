@@ -88,6 +88,9 @@ class RenderBurst(bpy.types.Operator):
 	rendering = None
 	path = "//"
 	disablerbbutton = False
+	do_change_file_output_names = False
+	orig_file_output_paths = []
+	file_output_node = None
 
 	def pre(self, dummy, thrd = None):
 		self.rendering = True
@@ -98,6 +101,9 @@ class RenderBurst(bpy.types.Operator):
 
 	def cancelled(self, dummy, thrd = None):
 		self.stop = True
+		if self.do_change_file_output_names:
+			for i, slot in enumerate(self.file_output_node.file_slots):
+				slot.path = self.orig_file_output_paths[i]
 
 	def execute(self, context):
 		self.stop = False
@@ -112,7 +118,7 @@ class RenderBurst(bpy.types.Operator):
 
 		if len(self.shots) < 0:
 			self.report({"WARNING"}, 'No cameras defined')
-			return {"FINISHED"}        
+			return {"FINISHED"}
 
 		bpy.app.handlers.render_pre.append(self.pre)
 		bpy.app.handlers.render_post.append(self.post)
@@ -120,6 +126,19 @@ class RenderBurst(bpy.types.Operator):
 
 		self._timer = bpy.context.window_manager.event_timer_add(0.5, window=bpy.context.window)
 		bpy.context.window_manager.modal_handler_add(self)
+
+		# check if we should change file output names
+		if context.scene.use_nodes and context.scene.node_tree:
+			# scan for a file output node
+			for node in context.scene.node_tree.nodes:
+				if node.type == "OUTPUT_FILE":
+					if "{}" in node.file_slots[0].path:
+						self.file_output_node = node
+						self.do_change_file_output_names = True
+						
+						for slot in node.file_slots:
+							self.orig_file_output_paths.append(slot.path)
+					
 
 		return {"RUNNING_MODAL"}
 
@@ -132,7 +151,7 @@ class RenderBurst(bpy.types.Operator):
 				bpy.app.handlers.render_cancel.remove(self.cancelled)
 				bpy.context.window_manager.event_timer_remove(self._timer)
 
-				return {"FINISHED"} 
+				return {"FINISHED"}
 
 			elif self.rendering is False: 
 				sc = bpy.context.scene
@@ -140,6 +159,12 @@ class RenderBurst(bpy.types.Operator):
 				# Set render settings from camera settings
 				if sc.camera.data.rb_camera_render_settings.use_camera_settings:
 					SetRenderSettingsFromCameraSettings(context, sc.camera.data.rb_camera_render_settings)
+
+				# format names
+				if self.do_change_file_output_names:
+					for i, slot in enumerate(self.file_output_node.file_slots):
+						print(self.orig_file_output_paths[i].format(context.scene.camera.name))
+						slot.path = self.orig_file_output_paths[i].format(context.scene.camera.name)
 
 				lpath = self.path
 				fpath = sc.render.filepath
@@ -233,6 +258,19 @@ class OBJECT_OT_RBSetCameraSettingsFromRenderSettings(bpy.types.Operator):
 		return{'FINISHED'}
 
 
+class OBJECT_OT_RBSetRenderSettingsFromCameraSettings(bpy.types.Operator):
+	bl_idname = "rb.set_render_settings_from_camera_settings"
+	bl_label = "Set Render Settings From Camera Settings"
+
+	@classmethod
+	def poll(cls, context):
+		return context.active_object and context.active_object.type == "CAMERA"
+
+	def execute(self, context):
+		SetRenderSettingsFromCameraSettings(context, context.active_object.data.rb_camera_render_settings)
+		return{'FINISHED'}
+
+
 class Camera_PT_RBCameraRenderSettings(Panel):
 	"""Creates a Panel in the Camera properties window"""
 	bl_label = "RBCamera Render Settings"
@@ -257,13 +295,14 @@ class Camera_PT_RBCameraRenderSettings(Panel):
 		layout.prop(camera_render_settings, "render_border_max_x")
 		layout.prop(camera_render_settings, "render_border_min_y")
 		layout.prop(camera_render_settings, "render_border_max_y")
-		layout.operator(OBJECT_OT_RBSetCameraSettingsFromRenderSettings.bl_idname)
+		#layout.operator(OBJECT_OT_RBSetCameraSettingsFromRenderSettings.bl_idname)
 
 def menu_func(self, context):
 	self.layout.operator(RenderBurst.bl_idname)
 
-#def draw_camera_settings(self, context):
-#	pass
+def draw_set_camera_settings(self, context):
+	self.layout.operator(OBJECT_OT_RBSetCameraSettingsFromRenderSettings.bl_idname)
+	self.layout.operator(OBJECT_OT_RBSetRenderSettingsFromCameraSettings.bl_idname)
 
 def register():
 	from bpy.utils import register_class
@@ -274,12 +313,16 @@ def register():
 	bpy.types.Camera.rb_camera_render_settings = bpy.props.PointerProperty(type=RbCameraRenderSettings)
 	register_class(RenderBurst)
 	register_class(OBJECT_OT_RBSetCameraSettingsFromRenderSettings)
+	register_class(OBJECT_OT_RBSetRenderSettingsFromCameraSettings)
 	register_class(RenderBurstCamerasPanel)
 	register_class(OBJECT_OT_RBButton)
 	bpy.types.TOPBAR_MT_render.append(menu_func)
+	bpy.types.RENDER_PT_dimensions.append(draw_set_camera_settings)
 
 def unregister():
 	from bpy.utils import unregister_class
+	bpy.types.RENDER_PT_dimensions.remove(draw_set_camera_settings)
+	unregister_class(OBJECT_OT_RBSetRenderSettingsFromCameraSettings)
 	unregister_class(OBJECT_OT_RBSetCameraSettingsFromRenderSettings)
 	unregister_class(RenderBurst)
 	bpy.types.TOPBAR_MT_render.remove(menu_func)
