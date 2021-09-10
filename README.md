@@ -1,8 +1,9 @@
 # Differences between this fork and RenderBurst
 
 * Works with 2.93
-
 * RenderSettings per Camera
+* Format CameraName into FileSubpath in Compositor OutputNode
+  * Just put "{}" inside File Subpath
 
 # Render Burst - Batch Rendering Add-on for Blender 2.8 and 2.79
 
