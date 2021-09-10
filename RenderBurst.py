@@ -151,6 +151,10 @@ class RenderBurst(bpy.types.Operator):
 				bpy.app.handlers.render_cancel.remove(self.cancelled)
 				bpy.context.window_manager.event_timer_remove(self._timer)
 
+				if self.do_change_file_output_names:
+					for i, slot in enumerate(self.file_output_node.file_slots):
+						slot.path = self.orig_file_output_paths[i]
+
 				return {"FINISHED"}
 
 			elif self.rendering is False: 
