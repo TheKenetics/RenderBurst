@@ -142,9 +142,9 @@ class RenderBurst(Operator):
 		wm.modal_handler_add(self)
 
 		# check if we should change file output names
-		if context.scene.use_nodes and context.scene.node_tree:
+		if scene.use_nodes and scene.node_tree:
 			# scan for a file output node
-			for node in context.scene.node_tree.nodes:
+			for node in scene.node_tree.nodes:
 				if node.type == "OUTPUT_FILE":
 					# If 1st path name includes the python format placeholder '{}'
 					if "{}" in node.file_slots[0].path:
@@ -182,7 +182,7 @@ class RenderBurst(Operator):
 				# format file output node names
 				if self.do_change_file_output_names:
 					for i, slot in enumerate(self.file_output_node.file_slots):
-						slot.path = self.orig_file_output_paths[i].format(context.scene.camera.name)
+						slot.path = self.orig_file_output_paths[i].format(cam.name)
 
 				lpath = self.path
 				fpath = scene.render.filepath
