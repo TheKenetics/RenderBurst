@@ -12,10 +12,13 @@ import bpy, os
 from bpy.props import EnumProperty, IntProperty, IntVectorProperty, FloatVectorProperty, BoolProperty, FloatProperty, StringProperty
 from bpy.types import PropertyGroup, UIList, Operator, Panel, AddonPreferences
 
+# Credit to Eugene Dudavkin - I borrowed some of his code for the bpy.handlers and checking if scene camera has changed
+# https://github.com/EugeneDudavkin
+
 ## Helper Functions
 # Set camera settings from current render settings
-def SetCameraSettingsFromRenderSettings(context, camera_render_settings):
-	render = context.scene.render
+def SetCameraSettingsFromRenderSettings(scene, camera_render_settings):
+	render = scene.render
 	camera_render_settings.render_size[0] = render.resolution_x
 	camera_render_settings.render_size[1] = render.resolution_y
 	camera_render_settings.render_percentage = render.resolution_percentage
@@ -27,8 +30,8 @@ def SetCameraSettingsFromRenderSettings(context, camera_render_settings):
 	camera_render_settings.render_border_max_y = render.border_max_y
 
 # Set current render settings from camera settings
-def SetRenderSettingsFromCameraSettings(context, camera_render_settings):
-	render = context.scene.render
+def SetRenderSettingsFromCameraSettings(scene, camera_render_settings):
+	render = scene.render
 	render.resolution_x = camera_render_settings.render_size[0]
 	render.resolution_y = camera_render_settings.render_size[1]
 	render.resolution_percentage = camera_render_settings.render_percentage
@@ -177,7 +180,7 @@ class RenderBurst(Operator):
 				cam = scene.camera
 				# Set render settings from camera settings
 				#if cam.data.rb_camera_render_settings.use_camera_settings:
-				SetRenderSettingsFromCameraSettings(context, cam.data.rb_camera_render_settings)
+				SetRenderSettingsFromCameraSettings(context.scene, cam.data.rb_camera_render_settings)
 
 				# format file output node names
 				if self.do_change_file_output_names:
@@ -222,8 +225,8 @@ class OBJECT_OT_RBSetCameraSettingsFromRenderSettings(Operator):
 		#return context.active_object and context.active_object.type == "CAMERA"
 
 	def execute(self, context):
-		SetCameraSettingsFromRenderSettings(context, context.scene.camera.data.rb_camera_render_settings)
-		#SetCameraSettingsFromRenderSettings(context, context.active_object.data.rb_camera_render_settings)
+		SetCameraSettingsFromRenderSettings(context.scene, context.scene.camera.data.rb_camera_render_settings)
+		#SetCameraSettingsFromRenderSettings(context.scene, context.active_object.data.rb_camera_render_settings)
 		return{'FINISHED'}
 
 
@@ -237,8 +240,8 @@ class OBJECT_OT_RBSetRenderSettingsFromCameraSettings(Operator):
 		#return context.active_object and context.active_object.type == "CAMERA"
 
 	def execute(self, context):
-		SetRenderSettingsFromCameraSettings(context, context.scene.camera.data.rb_camera_render_settings)
-		#SetRenderSettingsFromCameraSettings(context, context.active_object.data.rb_camera_render_settings)
+		SetRenderSettingsFromCameraSettings(context.scene, context.scene.camera.data.rb_camera_render_settings)
+		#SetRenderSettingsFromCameraSettings(context.scene, context.active_object.data.rb_camera_render_settings)
 		return{'FINISHED'}
 
 
@@ -299,6 +302,17 @@ def draw_set_camera_settings(self, context):
 	split.operator(OBJECT_OT_RBSetRenderSettingsFromCameraSettings.bl_idname, text="Get Settings", icon="WORKSPACE")
 	split.operator(OBJECT_OT_RBSetCameraSettingsFromRenderSettings.bl_idname, text="Set Settings", icon="IMPORT")
 
+## Handlers
+old_active_cam = None
+def update_render_settings(scene):
+	global old_active_cam
+	#print("Depsgraph Changed")
+	if scene.camera != old_active_cam:
+		#print("Scene Camera Changed")
+		old_active_cam = scene.camera
+		SetRenderSettingsFromCameraSettings(scene, old_active_cam.data.rb_camera_render_settings)
+
+
 ## Register
 classes = (
 	RbFilterSettings,
@@ -319,7 +333,15 @@ def register():
 	bpy.types.TOPBAR_MT_render.append(menu_func)
 	bpy.types.RENDER_PT_dimensions.append(draw_set_camera_settings)
 
+	bpy.app.handlers.depsgraph_update_post.append(update_render_settings)
+	bpy.app.handlers.undo_post.append(update_render_settings)
+	bpy.app.handlers.redo_post.append(update_render_settings)
+
 def unregister():
+	bpy.app.handlers.depsgraph_update_post.remove(update_render_settings)
+	bpy.app.handlers.undo_post.remove(update_render_settings)
+	bpy.app.handlers.redo_post.remove(update_render_settings)
+
 	bpy.types.RENDER_PT_dimensions.remove(draw_set_camera_settings)
 	bpy.types.TOPBAR_MT_render.remove(menu_func)
 	
