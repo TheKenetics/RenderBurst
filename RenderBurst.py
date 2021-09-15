@@ -11,6 +11,7 @@ bl_info = {
 import bpy, os
 from bpy.props import EnumProperty, IntProperty, IntVectorProperty, FloatVectorProperty, BoolProperty, FloatProperty, StringProperty
 from bpy.types import PropertyGroup, UIList, Operator, Panel, AddonPreferences
+from bpy.app.handlers import persistent
 
 # Credit to Eugene Dudavkin - I borrowed some of his code for the bpy.handlers and checking if scene camera has changed
 # https://github.com/EugeneDudavkin
@@ -304,11 +305,12 @@ def draw_set_camera_settings(self, context):
 
 ## Handlers
 old_active_cam = None
+@persistent
 def update_render_settings(scene):
 	global old_active_cam
-	#print("Depsgraph Changed")
+	print("Depsgraph Changed")
 	if scene.camera != old_active_cam:
-		#print("Scene Camera Changed")
+		print("Scene Camera Changed")
 		old_active_cam = scene.camera
 		SetRenderSettingsFromCameraSettings(scene, old_active_cam.data.rb_camera_render_settings)
 
@@ -344,11 +346,13 @@ def unregister():
 
 	bpy.types.RENDER_PT_dimensions.remove(draw_set_camera_settings)
 	bpy.types.TOPBAR_MT_render.remove(menu_func)
+
+	del bpy.types.Camera.rb_camera_render_settings
+	del bpy.types.WindowManager.rb_filter
 	
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
 
-	del bpy.types.Camera.rb_camera_render_settings
 
 if __name__ == "__main__":
 	register()
